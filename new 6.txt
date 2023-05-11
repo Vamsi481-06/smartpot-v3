@@ -1,0 +1,55 @@
+import importlib.util
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from API_Loader import load_keras_model
+import numpy as np
+from PIL import Image
+
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load your trained model
+model = load_keras_model("models/testmodel.h5")
+
+@app.post("/predict")
+async def predict(recipe: str = Form(...), image: UploadFile = File(...)):
+    # Import the selected recipe as a module
+    spec = importlib.util.spec_from_file_location("recipe_module", f"recipes/{recipe}.py")
+    recipe_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recipe_module)
+    
+    # Preprocess the input data and make predictions using the model
+    predictions = await make_prediction(model, image)
+
+    # Execute the recipe with the predictions and get the steps
+    recipe_step = recipe_module.run_recipe(np.argmax(predictions))
+
+    # Return the recipe steps as JSON
+    return JSONResponse(content={"step": recipe_step})
+
+async def make_prediction(model, image: UploadFile):
+    # Load the image file
+    image_data = Image.open(image.file)
+
+    # Preprocess the image (e.g., resize, convert to grayscale, normalize, etc.)
+    processed_image = image_data.convert("RGB").resize((256, 256))
+
+    # Convert the PIL image to a NumPy array and add an extra dimension for batch size
+    input_array = np.array(processed_image)[np.newaxis, :, :]
+
+    # Make predictions using the model
+    predictions = model.predict(input_array)
+
+    # Post-process the predictions (e.g., convert to a Python list or dictionary)
+    result = predictions.tolist()
+
+    return result

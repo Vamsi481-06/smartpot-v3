@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<form id="recipeForm">
+  <label for="recipe">Choose a recipe:</label>
+  <select id="recipe" name="recipe">
+    <option value="Alfredo">Alfredo Recipe</option>
+    <!-- Add more options as needed -->
+  </select><br>
+  <label for="image">Upload an image:</label>
+  <input type="file" id="image" name="image" accept="image/*"><br>
+  <input type="submit" value="Submit">
+</form>
+
+<div id="recipeStep"></div>
+
+<script>
+document.getElementById('recipeForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  // Get the selected recipe and the uploaded image
+  const recipe = document.getElementById('recipe').value;
+  const imageFile = document.getElementById('image').files[0];
+
+  // Create a FormData object and append the recipe and image
+  const formData = new FormData();
+  formData.append('recipe', recipe);
+  formData.append('image', imageFile);
+
+  // Send a POST request to your FastAPI backend
+  const response = await fetch('http://localhost:8000/predict', {
+    method: 'POST',
+    body: formData
+  });
+
+  // Parse the response as JSON
+  const data = await response.json();
+
+  // Display the recipe step on the page
+  document.getElementById('recipeStep').textContent = data.step;
+});
+</script>
+
+</body>
+</html>
